@@ -215,10 +215,18 @@ class Application(object):
             return jsonify(result)
 
     def api_run_command(self, request):
+        data = request.get_data(as_text=True)
+        LOG.info('Received request %s', data)
         body = request.get_json(force=True)
-        if ('name' not in body or 'params' not in body
-                or not isinstance(body['params'], dict)):
-            raise http_exc.BadRequest('Missing or invalid name or params')
+        # if ('name' not in body or 'params' not in body
+        #         or not isinstance(body['params'], dict)):
+            # raise http_exc.BadRequest('Missing or invalid name or params')
+        if 'name' not in body:
+            raise http_exc.BadRequest('Missing name')
+        elif 'params' not in body:
+            raise http_exc.BadRequest('Missing params')
+        elif not isinstance(body['params'], dict):
+            raise http_exc.BadRequest('invalid params')
 
         token = request.args.get('agent_token', None)
         if not self.agent.validate_agent_token(token):

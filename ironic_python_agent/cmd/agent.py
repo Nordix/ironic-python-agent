@@ -20,6 +20,8 @@ from oslo_service import sslutils
 from oslo_utils import strutils
 
 from ironic_python_agent import agent
+from ironic_python_agent import fake_ipa
+from ironic_python_agent.fake_ipa_server import FakeIPAServer
 from ironic_python_agent import config
 from ironic_python_agent import utils
 
@@ -47,17 +49,20 @@ def run():
     logger.debug("Configuration:")
     CONF.log_opt_values(logger, log.DEBUG)
     utils.log_early_log_to_logger()
-    agent.IronicPythonAgent(CONF.api_url,
-                            agent.Host(hostname=CONF.advertise_host,
-                                       port=CONF.advertise_port),
-                            agent.Host(hostname=CONF.listen_host,
-                                       port=CONF.listen_port),
-                            CONF.ip_lookup_attempts,
-                            CONF.ip_lookup_sleep,
-                            CONF.network_interface,
-                            CONF.lookup_timeout,
-                            CONF.lookup_interval,
-                            False,
-                            CONF.agent_token,
-                            CONF.hardware_initialization_delay,
-                            CONF.advertise_protocol).run()
+    ipa = fake_ipa.FakeIPA
+    # ipa = agent.IronicPythonAgent
+    # ipa = FakeIPAServer
+    ipa(CONF.api_url,
+        agent.Host(hostname=CONF.advertise_host,
+                   port=CONF.advertise_port),
+        agent.Host(hostname=CONF.listen_host,
+                   port=CONF.listen_port),
+        CONF.ip_lookup_attempts,
+        CONF.ip_lookup_sleep,
+        CONF.network_interface,
+        CONF.lookup_timeout,
+        CONF.lookup_interval,
+        False,
+        CONF.agent_token,
+        CONF.hardware_initialization_delay,
+        CONF.advertise_protocol).run()
