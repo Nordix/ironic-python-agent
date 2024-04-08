@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    IPA configuration option ``quiet-cleanup`` makes it possible to supress
+    the Python exceptions during the execution of the disk metadata cleanup.
+    The default value for ``quiet-cleanup`` is ``false``. The option can be
+    configured via kernel parameters such as ``ipa-quiet-cleanup=<yourvalue>``.
