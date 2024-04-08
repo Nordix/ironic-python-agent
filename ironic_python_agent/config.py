@@ -419,6 +419,12 @@ cli_opts = [
                      'override it per node by sending '
                      '``agent_enable_discard_erase`` in '
                      '``driver_internal_info``.'),
+    cfg.BoolOpt('quiet_cleanup',
+                default=APARAMS.get('ipa-quiet-cleanup', False),
+                help='When this option is set to True, the disk cleanup'
+                     'failure exceptions will be suppressed and the error'
+                     'will be just logged instead of causing a cleanup'
+                     'failure.'),
     cfg.BoolOpt('md5_enabled',
                 default=False,
                 help='If the MD5 algorithm is enabled for file checksums. '
