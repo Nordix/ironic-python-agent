@@ -338,6 +338,9 @@ class DestroyMetaDataTestCase(base.IronicLibTestCase):
                           mock.call('fuser', self.dev, check_exit_code=[0, 1])]
         disk_utils.destroy_disk_metadata(self.dev, self.node_uuid)
         mock_exec.assert_has_calls(expected_calls)
+        # test the quiet mode also, no need for other function
+        disk_utils.destroy_disk_metadata(self.dev, self.node_uuid, True)
+        mock_exec.assert_has_calls(expected_calls)
 
     def test_destroy_disk_metadata_wipefs_fail(self, mock_exec):
         mock_exec.side_effect = processutils.ProcessExecutionError
@@ -349,6 +352,21 @@ class DestroyMetaDataTestCase(base.IronicLibTestCase):
                           self.dev,
                           self.node_uuid)
         mock_exec.assert_has_calls(expected_call)
+
+    @mock.patch.object(disk_utils.LOG, 'error', autospec=True)
+    def test_destroy_disk_metadata_wipefs_faili_quiet(self, mock_log,
+                                                      mock_exec):
+        err = processutils.ProcessExecutionError(None, None, None, None, None)
+        mock_exec.side_effect = err
+        mock_exec_expected_call = [mock.call('wipefs', '--force', '--all',
+                                   'fake-dev', use_standard_locale=True)]
+        mock_log_expected_call = [mock.call("wipefs --force --all device"
+                                            " %(device)s Error %(error)s",
+                                            {'device': 'fake-dev',
+                                             'error': err})]
+        disk_utils.destroy_disk_metadata(self.dev, self.node_uuid, True)
+        mock_exec.assert_has_calls(mock_exec_expected_call)
+        mock_log.assert_has_calls(mock_log_expected_call)
 
     def test_destroy_disk_metadata_sgdisk_fail(self, mock_exec):
         expected_calls = [mock.call('wipefs', '--force', '--all', 'fake-dev',
@@ -374,7 +392,38 @@ class DestroyMetaDataTestCase(base.IronicLibTestCase):
                           self.node_uuid)
         mock_exec.assert_has_calls(expected_calls)
 
+    @mock.patch.object(disk_utils.LOG, 'error', autospec=True)
+    def test_destroy_disk_metadata_sgdisk_fail_quiet(self, mock_log,
+                                                     mock_exec):
+        err = processutils.ProcessExecutionError()
+        mock_exec.side_effect = iter([(None, None),
+                                      ('1024\n', None),
+                                      (None, None),
+                                      (None, None),
+                                      err])
+
+        exec_calls = [mock.call('wipefs', '--force', '--all', 'fake-dev',
+                                use_standard_locale=True),
+                      mock.call('blockdev', '--getsz', 'fake-dev'),
+                      mock.call('dd', 'bs=512', 'if=/dev/zero',
+                                'of=fake-dev', 'count=33', 'oflag=direct',
+                                use_standard_locale=True),
+                      mock.call('dd', 'bs=512', 'if=/dev/zero',
+                                'of=fake-dev', 'count=33', 'oflag=direct',
+                                'seek=991', use_standard_locale=True),
+                      mock.call('sgdisk', '-Z', 'fake-dev',
+                                use_standard_locale=True)]
+        log_calls = [mock.call("Destroying metadata on device \" %(device)s \""
+                               " : Error \" %(error)s \" Destruction with "
+                               "sgdisk.",
+                               {'device': 'fake-dev', 'error': err})]
+
+        disk_utils.destroy_disk_metadata(self.dev, self.node_uuid, True)
+        mock_exec.assert_has_calls(exec_calls)
+        mock_log.assert_has_calls(log_calls)
+
     def test_destroy_disk_metadata_wipefs_not_support_force(self, mock_exec):
+        """This has no quiet version, this should be quiet by default"""
         mock_exec.side_effect = iter([
             processutils.ProcessExecutionError(description='--force'),
             (None, None),

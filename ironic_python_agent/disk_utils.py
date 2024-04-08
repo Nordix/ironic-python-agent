@@ -434,7 +434,7 @@ def get_dev_block_size(dev):
     return int(block_sz)
 
 
-def destroy_disk_metadata(dev, node_uuid):
+def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     """Destroy metadata structures on node's disk.
 
     Ensure that node's disk magic strings are wiped without zeroing the
@@ -452,12 +452,31 @@ def destroy_disk_metadata(dev, node_uuid):
                       use_standard_locale=True)
     except processutils.ProcessExecutionError as e:
         with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
             # NOTE(zhenguo): Check if --force option is supported for wipefs,
             # if not, we should try without it.
             if '--force' in str(e):
+                # Note(adam): Won't reraise even in non quiet mode
                 ctxt.reraise = False
-                utils.execute('wipefs', '--all', dev,
-                              use_standard_locale=True)
+                try:
+                    utils.execute('wipefs', '--all', dev,
+                                  use_standard_locale=True)
+                except Exception as er:
+                    with excutils.save_and_reraise_exception() as ctxti:
+                        ctxti.reraise = not quiet_mode
+                        LOG.error("wipefs --force device %(device)s Error "
+                                  "%(error)s", {'device': dev, 'error': er})
+                    if quiet_mode:
+                        return
+            LOG.error("wipefs --force --all device %(device)s Error "
+                      "%(error)s", {'device': dev, 'error': e})
+        return
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("wipefs on device %(device)s Error %(error)s",
+                      {'device': dev, 'error': e})
+        return
     # NOTE(TheJulia): sgdisk attempts to load and make sense of the
     # partition tables in advance of wiping the partition data.
     # This means when a CRC error is found, sgdisk fails before
@@ -471,23 +490,52 @@ def destroy_disk_metadata(dev, node_uuid):
     dev_size = get_dev_block_size(dev)
     if dev_size < GPT_SIZE_SECTORS:
         dd_count = 'count=%s' % dev_size
-    utils.execute('dd', 'bs=512', 'if=/dev/zero', dd_device, dd_count,
-                  'oflag=direct', use_standard_locale=True)
+    try:
+        utils.execute('dd', 'bs=512', 'if=/dev/zero', dd_device, dd_count,
+                      'oflag=direct', use_standard_locale=True)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata %(device)s Error %(error)s"
+                      "Destruction with dd dev_size < GPT_SIZE_SECTORS.",
+                      {'device': dev, 'error': e})
+        return
 
     # Overwrite the Secondary GPT, do this only if there could be one
     if dev_size > GPT_SIZE_SECTORS:
         gpt_backup = dev_size - GPT_SIZE_SECTORS
         dd_seek = 'seek=%i' % gpt_backup
         dd_count = 'count=%s' % GPT_SIZE_SECTORS
-        utils.execute('dd', 'bs=512', 'if=/dev/zero', dd_device, dd_count,
-                      'oflag=direct', dd_seek, use_standard_locale=True)
+        try:
+            utils.execute('dd', 'bs=512', 'if=/dev/zero', dd_device, dd_count,
+                          'oflag=direct', dd_seek, use_standard_locale=True)
+        except Exception as e:
+            with excutils.save_and_reraise_exception() as ctxt:
+                ctxt.reraise = not quiet_mode
+                LOG.error("Destroying metadata %(device)s Error %(error)s"
+                          "Destruction with dd dev_size > GPT_SIZE_SECTORS.",
+                          {'device': dev, 'error': e})
+            return
 
     # Go ahead and let sgdisk run as well.
-    utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+    try:
+        utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata on device \" %(device)s \" "
+                      ": Error \" %(error)s \" Destruction with sgdisk.",
+                      {'device': dev, 'error': e})
+        return
 
     try:
         wait_for_disk_to_become_available(dev)
     except exception.IronicException as e:
+        if quiet_mode:
+            LOG.error("Destroying metadata on %(dev)s for node "
+                      "%(node)s has failed! Error: disk is not available!",
+                      {'dev': dev, 'node': node_uuid})
+            return
         raise exception.InstanceDeployFailure(
             _('Destroying metadata failed on device %(device)s. '
               'Error: %(error)s')
