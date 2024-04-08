@@ -1926,7 +1926,8 @@ class GenericHardwareManager(HardwareManager):
         for dev in self._list_erasable_devices(node):
             safety_check_block_device(node, dev.name)
             try:
-                disk_utils.destroy_disk_metadata(dev.name, node['uuid'])
+                disk_utils.destroy_disk_metadata(dev.name, node['uuid'],
+                                                 CONF.quiet_cleanup)
             except processutils.ProcessExecutionError as e:
                 LOG.error('Failed to erase the metadata on device "%(dev)s". '
                           'Error: %(error)s', {'dev': dev.name, 'error': e})
@@ -1972,7 +1973,8 @@ class GenericHardwareManager(HardwareManager):
                           'clean', {'dev': dev.name, 'error': e})
                 secure_erase_error = e
             try:
-                disk_utils.destroy_disk_metadata(dev.name, node['uuid'])
+                disk_utils.destroy_disk_metadata(dev.name, node['uuid'],
+                                                 CONF.quiet_cleanup)
             except processutils.ProcessExecutionError as e:
                 LOG.error('Failed to erase the metadata on device '
                           '"%(dev)s". Error: %(error)s',
