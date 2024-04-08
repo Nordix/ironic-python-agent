@@ -231,8 +231,7 @@ def work_on_disk(dev, root_mb, swap_mb, ephemeral_mb, ephemeral_format,
     commit = not preserve_ephemeral
     # now if we are committing the changes to disk clean first.
     if commit:
-        disk_utils.destroy_disk_metadata(dev, node_uuid)
-
+        disk_utils.destroy_disk_metadata(dev, node_uuid, CONF.quiet_cleanup)
     try:
         # If requested, get the configdrive file and determine the size
         # of the configdrive partition
