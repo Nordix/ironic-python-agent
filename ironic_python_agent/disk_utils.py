@@ -511,7 +511,7 @@ def get_dev_sector_size(dev):
     return int(sect_sz)
 
 
-def destroy_disk_metadata(dev, node_uuid):
+def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     """Destroy metadata structures on node's disk.
 
     Ensure that node's disk magic strings are wiped without zeroing the
@@ -529,12 +529,31 @@ def destroy_disk_metadata(dev, node_uuid):
                       use_standard_locale=True)
     except processutils.ProcessExecutionError as e:
         with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
             # NOTE(zhenguo): Check if --force option is supported for wipefs,
             # if not, we should try without it.
             if '--force' in str(e):
+                # Note(adam): Won't reraise even in non quiet mode
                 ctxt.reraise = False
-                utils.execute('wipefs', '--all', dev,
-                              use_standard_locale=True)
+                try:
+                    utils.execute('wipefs', '--all', dev,
+                                  use_standard_locale=True)
+                except Exception as er:
+                    with excutils.save_and_reraise_exception() as ctxti:
+                        ctxti.reraise = not quiet_mode
+                        LOG.error("wipefs --force device %(device)s Error "
+                                  "%(error)s", {'device': dev, 'error': er})
+                    if quiet_mode:
+                        return
+            LOG.error("wipefs --force --all device %(device)s Error "
+                      "%(error)s", {'device': dev, 'error': e})
+        return
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("wipefs on device %(device)s Error %(error)s",
+                      {'device': dev, 'error': e})
+        return
     # NOTE(TheJulia): sgdisk attempts to load and make sense of the
     # partition tables in advance of wiping the partition data.
     # This means when a CRC error is found, sgdisk fails before
@@ -542,7 +561,14 @@ def destroy_disk_metadata(dev, node_uuid):
     # This is the same bug as
     # https://bugs.launchpad.net/ironic-python-agent/+bug/1737556
 
-    sector_size = get_dev_sector_size(dev)
+    try:
+        sector_size = get_dev_sector_size(dev)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Getting sector size on %(device)s  failed Error "
+                      "%(error)s", {'device': dev, 'error': e})
+        return
     # https://uefi.org/specs/UEFI/2.10/05_GUID_Partition_Table_Format.html If
     # the block size is 512, the First Usable LBA must be greater than or equal
     # to 34 [...] if the logical block size is 4096, the First Usable LBA must
@@ -553,29 +579,66 @@ def destroy_disk_metadata(dev, node_uuid):
         gpt_sectors = 5
 
     # Overwrite the Primary GPT, catch very small partitions (like EBRs)
+    try:
+        dev_size = get_dev_byte_size(dev)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Getting device size (byte) on %(device)s failed Error "
+                      "%(error)s", {'device': dev, 'error': e})
+        return
+
     dd_bs = 'bs=%s' % sector_size
     dd_device = 'of=%s' % dev
     dd_count = 'count=%s' % gpt_sectors
-    dev_size = get_dev_byte_size(dev)
     if dev_size < gpt_sectors * sector_size:
         dd_count = 'count=%s' % int(dev_size / sector_size)
-    utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
-                  'oflag=direct', use_standard_locale=True)
+    try:
+        utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
+                      'oflag=direct', use_standard_locale=True)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata %(device)s Error %(error)s "
+                      "Destruction with dd dev_size < GPT_SIZE_SECTORS.",
+                      {'device': dev, 'error': e})
+        return
 
     # Overwrite the Secondary GPT, do this only if there could be one
     if dev_size > gpt_sectors * sector_size:
         gpt_backup = int(dev_size / sector_size - gpt_sectors)
         dd_seek = 'seek=%i' % gpt_backup
         dd_count = 'count=%s' % gpt_sectors
-        utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
-                      'oflag=direct', dd_seek, use_standard_locale=True)
+        try:
+            utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
+                          'oflag=direct', dd_seek, use_standard_locale=True)
+        except Exception as e:
+            with excutils.save_and_reraise_exception() as ctxt:
+                ctxt.reraise = not quiet_mode
+                LOG.error("Destroying metadata %(device)s Error %(error)s "
+                          "Destruction with dd dev_size > GPT_SIZE_SECTORS.",
+                          {'device': dev, 'error': e})
+            return
 
     # Go ahead and let sgdisk run as well.
-    utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+    try:
+        utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata on device \" %(device)s \" "
+                      ": Error \" %(error)s \" Destruction with sgdisk.",
+                      {'device': dev, 'error': e})
+        return
 
     try:
         wait_for_disk_to_become_available(dev)
     except exception.IronicException as e:
+        if quiet_mode:
+            LOG.error("Destroying metadata on %(dev)s for node "
+                      "%(node)s has failed! Error: disk is not available!",
+                      {'dev': dev, 'node': node_uuid})
+            return
         raise exception.InstanceDeployFailure(
             _('Destroying metadata failed on device %(device)s. '
               'Error: %(error)s')

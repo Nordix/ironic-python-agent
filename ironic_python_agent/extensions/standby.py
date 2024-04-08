@@ -353,7 +353,7 @@ def _write_whole_disk_image(image, image_info, device, source_format=None,
                           not permitted
     """
     # FIXME(dtantsur): pass the real node UUID for logging
-    disk_utils.destroy_disk_metadata(device, '')
+    disk_utils.destroy_disk_metadata(device, '', CONF.quiet_cleanup)
     disk_utils.udev_settle()
 
     try:
