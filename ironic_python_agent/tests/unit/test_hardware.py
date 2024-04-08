@@ -2741,8 +2741,8 @@ class TestGenericHardwareManager(base.IronicAgentTest):
         self.assertEqual([mock.call(self.hardware, block_devices[2]),
                          mock.call(self.hardware, block_devices[3])],
                          mock_nvme_erase.call_args_list)
-        self.assertEqual([mock.call('/dev/sda', self.node['uuid']),
-                         mock.call('/dev/md0', self.node['uuid'])],
+        self.assertEqual([mock.call('/dev/sda', self.node['uuid'], False),
+                         mock.call('/dev/md0', self.node['uuid'], False)],
                          mock_destroy_disk_metadata.call_args_list)
         mock_list_erasable_devices.assert_called_with(self.hardware,
                                                       self.node)
@@ -2821,9 +2821,9 @@ class TestGenericHardwareManager(base.IronicAgentTest):
 
         self.hardware.erase_devices_metadata(self.node, [])
 
-        self.assertEqual([mock.call('/dev/sda1', self.node['uuid']),
-                          mock.call('/dev/sda', self.node['uuid']),
-                          mock.call('/dev/md0', self.node['uuid'])],
+        self.assertEqual([mock.call('/dev/sda1', self.node['uuid'], False),
+                          mock.call('/dev/sda', self.node['uuid'], False),
+                          mock.call('/dev/md0', self.node['uuid'], False)],
                          mock_metadata.call_args_list)
         mock_list_devs.assert_called_with(self.hardware,
                                           include_partitions=True,
@@ -2883,7 +2883,7 @@ class TestGenericHardwareManager(base.IronicAgentTest):
                           self.hardware.erase_devices_metadata,
                           self.node, [])
 
-        self.assertEqual([mock.call('/dev/sda1', self.node['uuid'])],
+        self.assertEqual([mock.call('/dev/sda1', self.node['uuid'], False)],
                          mock_metadata.call_args_list)
         mock_list_devs.assert_called_with(self.hardware,
                                           include_partitions=True,
@@ -2932,8 +2932,8 @@ class TestGenericHardwareManager(base.IronicAgentTest):
                                self.node, [])
         # Assert all devices are erased independent if one of them
         # failed previously
-        self.assertEqual([mock.call('/dev/sdb', self.node['uuid']),
-                          mock.call('/dev/sda', self.node['uuid'])],
+        self.assertEqual([mock.call('/dev/sdb', self.node['uuid'], False),
+                          mock.call('/dev/sda', self.node['uuid'], False)],
                          mock_metadata.call_args_list)
         mock_list_devs.assert_called_with(self.hardware,
                                           include_partitions=True,

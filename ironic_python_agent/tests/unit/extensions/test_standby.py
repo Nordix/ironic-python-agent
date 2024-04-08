@@ -316,7 +316,7 @@ class TestStandbyExtension(base.IronicAgentTest):
                                              cache='directsync',
                                              out_of_order=True)
         validate_mock.assert_called_once_with(location, source_format)
-        wipe_mock.assert_called_once_with(device, '')
+        wipe_mock.assert_called_once_with(device, '', False)
         udev_mock.assert_called_once_with()
         rescan_mock.assert_called_once_with(device)
         fix_gpt_mock.assert_called_once_with(device, node_uuid=None)
