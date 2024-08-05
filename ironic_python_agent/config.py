@@ -391,6 +391,13 @@ cli_opts = [
                      'image validation logic will fail the deployment '
                      'process. This check is skipped if deep image '
                      'inspection is disabled.'),
+    cfg.BoolOpt('enable_disk_encryption',
+                default=APARAMS.get('ipa-enable-disk-encryption', False),
+                help='Enables disk encryption for the root device.'
+                     'The disk encryption is handled by one of the relevant'
+                     'hardware managers with the highes hardware support '
+                     'value. By default the LUKS+tpm hardware manager takes'
+                     'care of the encryption.'),
 ]
 
 disk_utils_opts = [
