@@ -934,7 +934,8 @@ class TestStandbyExtension(base.IronicAgentTest):
                                               permit_refresh=True)
         configdrive_copy_mock.assert_called_once_with(image_info['node_uuid'],
                                                       'manager',
-                                                      'configdrive_data')
+                                                      'configdrive_data',
+                                                      False)
 
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertIn('result', async_result.command_result)
@@ -1152,7 +1153,8 @@ class TestStandbyExtension(base.IronicAgentTest):
                                               permit_refresh=True)
         configdrive_copy_mock.assert_called_once_with(image_info['node_uuid'],
                                                       'manager',
-                                                      'configdrive_data')
+                                                      'configdrive_data',
+                                                      False)
 
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertIn('result', async_result.command_result)

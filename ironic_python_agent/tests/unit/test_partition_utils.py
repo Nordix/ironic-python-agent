@@ -669,7 +669,7 @@ class CreateConfigDriveTestCases(base.IronicAgentTest):
             mock.call('mount', '-o', 'ro', '-t', 'auto',
                       '/dev/fake-part1', mock.ANY),
             mock.call('umount', mock.ANY)])
-        self.assertFalse(mock_table_type.called)
+        self.assertTrue(mock_table_type.called)
         mock_dd.assert_called_with(configdrive_file, configdrive_part)
         mock_unlink.assert_called_with(configdrive_file)
 
