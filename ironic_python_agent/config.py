@@ -413,6 +413,13 @@ cli_opts = [
                      'Generally, this should remain disabled for maximum '
                      'security, however, this option allows it to be '
                      're-enabled for compatibility.'),
+    cfg.BoolOpt('enable_disk_encryption',
+                default=APARAMS.get('ipa-enable-disk-encryption', False),
+                help='Enables disk encryption for the root device.'
+                     'The disk encryption is handled by one of the relevant'
+                     'hardware managers with the highes hardware support '
+                     'value. By default the LUKS+tpm hardware manager takes'
+                     'care of the encryption.'),
 ]
 
 disk_utils_opts = [
