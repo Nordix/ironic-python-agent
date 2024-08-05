@@ -40,6 +40,11 @@ LOG = log.getLogger(__name__)
 IMAGE_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
+def _disk_encryption_requested(image_info):
+    # TODO(adam) check both image_info and CONF
+    return CONF.enable_disk_encryption
+
+
 def _image_location(image_info):
     """Get the location of the image in the local file system.
 
@@ -940,6 +945,7 @@ class StandbyExtension(base.BaseAgentExtension):
         :raises: InstanceDeployFailure if failed to create config drive.
              large to store on the given device.
         """
+        disk_encryption = _disk_encryption_requested(image_info)
         LOG.debug('Preparing image %s', image_info['id'])
         # NOTE(dtantsur): backward compatibility
         if configdrive is None:
@@ -966,15 +972,33 @@ class StandbyExtension(base.BaseAgentExtension):
                                                                   device,
                                                                   configdrive)
                     stream_to = self.partition_uuids['partitions']['root']
+                    # In case of partition image encryption happens after
+                    # partition creation but before streaming
+                    if disk_encryption:
+                        # TODO(adam) dispatch partition image
+                        # TODO(adam) open partition
+                        self._stream_raw_image_onto_device(image_info,
+                                                           stream_to)
+                    else:
+                        self._stream_raw_image_onto_device(image_info,
+                                                           stream_to)
                 else:
                     self.partition_uuids = {}
                     stream_to = device
 
-                # NOTE(JayF): Images that claim to be raw are not inspected at
-                #             all, as they never interact with qemu-img and are
-                #             streamed directly to disk unmodified.
-                self._stream_raw_image_onto_device(image_info, stream_to)
+                    # NOTE(JayF): Images that claim to be raw are not
+                    #             inspected at all, as they never interact
+                    #             with qemu-img and are streamed directly to
+                    #             disk unmodified.
+                    self._stream_raw_image_onto_device(image_info, stream_to)
+                    utils.execute('ln', '-s', stream_to, '/tmp/root_disk')
+                    # For whole disk image encryption is done after
+                    # the streaming is done
+                    if disk_encryption:
+                        hardware.dispatch_to_managers(
+                            'whole_disk_image_encryption', device=stream_to)
             else:
+                # Encryption is handled within cache_and_write_image
                 self._cache_and_write_image(image_info, device, configdrive)
 
         _validate_partitioning(device)
@@ -992,7 +1016,8 @@ class StandbyExtension(base.BaseAgentExtension):
                 node_uuid = image_info.get('node_uuid', 'local')
                 partition_utils.create_config_drive_partition(node_uuid,
                                                               device,
-                                                              configdrive)
+                                                              configdrive,
+                                                              disk_encryption)
 
         self._fix_up_partition_uuids(image_info, device)
         msg = 'image ({}) written to device {} '

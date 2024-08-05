@@ -344,7 +344,8 @@ def work_on_disk(dev, root_mb, swap_mb, ephemeral_mb, ephemeral_format,
     return dict(partitions=part_dict, **uuids_to_return)
 
 
-def create_config_drive_partition(node_uuid, device, configdrive):
+def create_config_drive_partition(node_uuid, device, configdrive,
+                                  encryption=False):
     """Create a partition for config drive
 
     Checks if the device is GPT or MBR partitioned and creates config drive
@@ -358,6 +359,10 @@ def create_config_drive_partition(node_uuid, device, configdrive):
         or if it fails to create config drive.
     """
     confdrive_file = None
+    encryption_size_modifier = 0
+    is_gpt = False
+    if encryption:
+        encryption_size_modifier = 32
     try:
         config_drive_part = get_labelled_partition(
             device, disk_utils.CONFIGDRIVE_LABEL, node_uuid)
@@ -375,19 +380,23 @@ def create_config_drive_partition(node_uuid, device, configdrive):
                   {'dev': device, 'size': confdrive_mb, 'node': node_uuid})
 
         disk_utils.fix_gpt_partition(device, node_uuid)
+        if disk_utils.get_partition_table_type(device) == 'gpt':
+            is_gpt = True
         if config_drive_part:
             LOG.debug("Configdrive for node %(node)s exists at "
                       "%(part)s",
                       {'node': node_uuid, 'part': config_drive_part})
         else:
             part_uuid = None
-            if disk_utils.get_partition_table_type(device) == 'gpt':
+            if is_gpt:
                 part_uuid = uuidutils.generate_uuid()
                 create_option = '0:-%dMB:0' % MAX_CONFIG_DRIVE_SIZE_MB
+                + encryption_size_modifier
                 uuid_option = '0:%s' % part_uuid
                 utils.execute('sgdisk', '-n', create_option,
                               '-u', uuid_option, device)
             else:
+                # MBR workflow
                 cur_parts = set(part['number']
                                 for part in disk_utils.list_partitions(device))
 
@@ -467,14 +476,29 @@ def create_config_drive_partition(node_uuid, device, configdrive):
                       {'part': config_drive_part, 'node': node_uuid})
             utils.execute('test', '-e', config_drive_part, attempts=15,
                           delay_on_retry=True)
+        if encryption and is_gpt:
+            hardware.dispatch_to_managers('config_drive_encryption',
+                                          config_drive_part)
+            config_drive_mount_target = \
+                hardware.dispatch_to_managers('config_drive_open',
+                                              config_drive_part)
         if not CONF.config_drive_rebuild:
-            disk_utils.dd(confdrive_file, config_drive_part)
-            if not _does_config_drive_work(config_drive_part):
-                # If we have reached this point, we might have an
-                # invalid configuration drive, OR the block device
-                # layer doesn't support 2K block Logical IO (iso9660)
-                _try_build_fat32_config_drive(config_drive_part,
-                                              confdrive_file)
+            if encryption and is_gpt:
+                disk_utils.dd(confdrive_file, config_drive_mount_target)
+                if not _does_config_drive_work(config_drive_mount_target):
+                    # If we have reached this point, we might have an
+                    # invalid configuration drive, OR the block device
+                    # layer doesn't support 2K block Logical IO (iso9660)
+                    _try_build_fat32_config_drive(config_drive_mount_target,
+                                                  confdrive_file)
+            else:
+                disk_utils.dd(confdrive_file, config_drive_part)
+                if not _does_config_drive_work(config_drive_part):
+                    # If we have reached this point, we might have an
+                    # invalid configuration drive, OR the block device
+                    # layer doesn't support 2K block Logical IO (iso9660)
+                    _try_build_fat32_config_drive(config_drive_part,
+                                                  confdrive_file)
         else:
             LOG.info('Extracting configuration drive to write copy to disk.')
             _try_build_fat32_config_drive(config_drive_part, confdrive_file)
@@ -519,8 +543,12 @@ def _does_config_drive_work(config_drive_part):
         # size which is usable. If the underlying driver cannot use that size,
         # then the filesystem will not work and cannot be updated because
         # structurally it is incompaible with the block device driver.
-        utils.execute('mount', '-o', 'ro', '-t', 'auto', config_drive_part,
-                      temp_folder)
+        # TODO(adam) concider testing the presence of config-2
+        # config_drive_mount_target = \
+        #    hardware.dispatch_to_managers('config_drive_open',
+        #                                  config_drive_part)
+        utils.execute('mount', '-o', 'ro', '-t', 'auto',
+                      config_drive_part, temp_folder)
         utils.execute('umount', temp_folder)
     except (processutils.ProcessExecutionError, OSError) as e:
         LOG.error('Encountered issue attempting to validate the '
