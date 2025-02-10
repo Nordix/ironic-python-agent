@@ -3460,24 +3460,29 @@ class TestGenericHardwareManager(base.IronicAgentTest):
         self.assertIsNone(self.hardware.get_bmc_v6address())
         mock_execute.assert_not_called()
 
+    @mock.patch.object(efi_utils, 'clean_boot_order_list', autospec=True)
     @mock.patch.object(efi_utils, 'clean_boot_records', autospec=True)
-    def test_clean_uefi_nvram_defaults(self, mock_efi_utils):
+    def test_clean_uefi_nvram_defaults(self, mock_cln_boot_rec,
+                                       mock_cln_boot_order):
         self.hardware.clean_uefi_nvram(self.node, [])
-        mock_efi_utils.assert_called_once_with(patterns=[
+        mock_cln_boot_rec.assert_called_once_with(patterns=[
             re.compile(r'^HD\(', flags=re.IGNORECASE),
             re.compile(r'shim.*\.efi', flags=re.IGNORECASE),
             re.compile(r'grub.*\.efi', flags=re.IGNORECASE)
         ])
+        mock_cln_boot_order.assert_called_once()
 
+    @mock.patch.object(efi_utils, 'clean_boot_order_list', autospec=True)
     @mock.patch.object(efi_utils, 'clean_boot_records', autospec=True)
-    def test_clean_uefi_nvram(self, mock_efi_utils):
+    def test_clean_uefi_nvram(self, mock_cln_boot_rec, mock_cln_boot_order):
         self.hardware.clean_uefi_nvram(self.node, [], match_patterns=[
             'VenHw', 'VenMsg'
         ])
-        mock_efi_utils.assert_called_once_with(patterns=[
+        mock_cln_boot_rec.assert_called_once_with(patterns=[
             re.compile(r'VenHw', flags=re.IGNORECASE),
             re.compile(r'VenMsg', flags=re.IGNORECASE)
         ])
+        mock_cln_boot_order.assert_called_once()
 
     @mock.patch.object(efi_utils, 'clean_boot_records', autospec=True)
     def test_clean_uefi_invalid(self, mock_efi_utils):

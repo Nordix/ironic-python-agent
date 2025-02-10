@@ -2844,7 +2844,7 @@ class GenericHardwareManager(HardwareManager):
                 patterns.append(re.compile(item, flags=re.IGNORECASE))
             except re.error:
                 raise errors.InvalidCommandParamsError(validation_error)
-
+        efi_utils.clean_boot_order_list()
         return efi_utils.clean_boot_records(patterns=patterns)
 
     def apply_configuration(self, node, ports, raid_config,

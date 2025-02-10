@@ -314,6 +314,15 @@ def remove_boot_record(boot_num):
     utils.execute('efibootmgr', '-b', boot_num, '-B', binary=True)
 
 
+def clean_boot_order_list():
+    """Clean the boot order list
+
+    Cleans the boot order list but leaves the EFI boot device inventory
+    unchanged.
+    """
+    utils.execute('efibootmgr', '-O', binary=True)
+
+
 def clean_boot_records(patterns):
     """Remove EFI boot records matching regex patterns.
 
