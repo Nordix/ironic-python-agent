@@ -2720,7 +2720,7 @@ class GenericHardwareManager(HardwareManager):
             },
             {
                 'step': 'clean_uefi_nvram',
-                'priority': 0,
+                'priority': 81,
                 'interface': 'deploy',
                 'reboot_requested': False,
                 'argsinfo': DEPLOY_CLEAN_UEFI_NVRAM_ARGSINFO,
