@@ -2830,8 +2830,7 @@ class GenericHardwareManager(HardwareManager):
         :param match_patterns: A list of string regular expression patterns
                                where any matching entry will be deleted.
         """
-        if match_patterns is None:
-            match_patterns = DEFAULT_CLEAN_UEFI_NVRAM_MATCH_PATTERNS
+        match_patterns = DEFAULT_CLEAN_UEFI_NVRAM_MATCH_PATTERNS
         validation_error = ('The match_patterns must be a list of strings: '
                             '{}').format(match_patterns)
         if type(match_patterns) is not list:
