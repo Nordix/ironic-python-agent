@@ -332,6 +332,7 @@ def clean_boot_records(patterns):
 
     for boot_num, entry, _, path in get_boot_records():
         for pattern in patterns:
+            LOG.debug('UEFI Pattern tried: %s', pattern.pattern)
             if pattern.search(path):
                 LOG.debug('Path %s matched pattern %s, '
                           'entry will be deleted: %s',
