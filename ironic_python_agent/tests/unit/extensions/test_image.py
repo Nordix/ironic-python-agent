@@ -336,7 +336,7 @@ Boot0000 ironic1 HD(1,GPT,4f3c6294-bf9b-4208-9808-be45dfc34b5c)File(\EFI\Boot\BO
 Boot0001 ironic2 HD(1,GPT,4f3c6294-bf9b-4208-9808-111111111112)File(\EFI\Boot\BOOTX64.EFI)
 Boot0002 VENDMAGIC FvFile(9f3c6294-bf9b-4208-9808-be45dfc34b51)
 """  # noqa This is a giant literal string for testing.
-        stdout_msg = stdout_msg.encode('utf-16')
+        stdout_msg = stdout_msg.encode('utf-8')
         mock_execute.side_effect = iter([('', ''), ('', ''),
                                          ('', ''), ('', ''),
                                          (stdout_msg, ''), (EFI_RESULT, ''),
@@ -400,7 +400,7 @@ Boot0002* Hard Disk     VenHw(1fad3248-0000-7950-2166-a1e506fdb83a,01000000)..GO
 Boot0003* Network       VenHw(1fad3248-0000-7950-2166-a1e506fdb83a,05000000)..GO..NO............U.E.F.I.:. . . .S.L.O.T.2. .(.2.F./.0./.0.). .P.X.E. .I.P.4. . .Q.L.o.g.i.c. .Q.L.4.1.2.6.2. .P.C.I.e. .2.5.G.b. .2.-.P.o.r.t. .S.F.P.2.8. .E.t.h.e.r.n.e.t. .A.d.a.p.t.e.r. .-. .P.X.E........A....................%.4..Z...............................................................Gd-.;.A..MQ..L.P.X.E. .I.P.4. .Q.L.o.g.i.c. .Q.L.4.1.2.6.2. .P.C.I.e. .2.5.G.b. .2.-.P.o.r.t. .S.F.P.2.8. .E.t.h.e.r.n.e.t. .A.d.a.p.t.e.r. .-. .P.X.E.......BO..NO............U.E.F.I.:. . . .S.L.O.T.1. .(.3.0./.0./.0.). .P.X.E. .I.P.4. . .Q.L.o.g.i.c. .Q.L.4.1.2.6.2. .P.C.I.e. .2.5.G.b. .2.-.P.o.r.t. .S.F.P.2.8. .E.t.h.e.r.n.e.t. .A.d.a.p.t.e.r. .-.
 Boot0004* ironic1      HD(1,GPT,55db8d03-c8f6-4a5b-9155-790dddc348fa,0x800,0x64000)/File(\EFI\boot\shimx64.efi)
 """  # noqa This is a giant literal string for testing.
-        stdout_msg = stdout_msg.encode('utf-16')
+        stdout_msg = stdout_msg.encode('utf-8')
         mock_execute.side_effect = iter([('', ''), ('', ''),
                                          ('', ''), ('', ''),
                                          (stdout_msg, ''), ('', ''),

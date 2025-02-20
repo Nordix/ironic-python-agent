@@ -29,7 +29,7 @@ from ironic_python_agent.tests.unit.samples import hardware_samples
 from ironic_python_agent import utils
 
 
-EFI_RESULT = ''.encode('utf-16')
+EFI_RESULT = ''.encode('utf-8')
 
 
 @mock.patch.object(os, 'walk', autospec=True)
@@ -119,7 +119,7 @@ class TestRunEfiBootmgr(base.IronicAgentTest):
         mock_execute.assert_has_calls(expected)
 
     def test__run_efibootmgr(self, mock_execute):
-        mock_execute.return_value = (''.encode('utf-16'), '')
+        mock_execute.return_value = (''.encode('utf-8'), '')
         result = efi_utils._run_efibootmgr(['EFI/BOOT/BOOTX64.EFI'],
                                            self.fake_dev,
                                            self.fake_efi_system_part,
@@ -226,7 +226,7 @@ Boot123A* Integrated NIC 1 Port 1 Partition 1   VenHw(33391845-5f86-4e78-8fce-c4
 Boot000B* UEFI: PXE IPv4 Realtek PCIe 2.5GBE Family Controller	PciRoot(0x0)/Pci(0x1c,0x0)/Pci(0x0,0x0)/MAC([REDACTED],0)/IPv4(0.0.0.00.0.0.0,0,0)..BO
 Boot0008* Generic USB Boot UsbClass(ffff,ffff,255,255)
 Boot0009* Internal CD/DVD ROM Drive (UEFI)      PciRoot(0x0)/Pci(0x11,0x0)/Sata(1,65535,0)/CDROM(1,0x265,0x2000)
-""".encode('utf-16') # noqa This is a giant literal string for testing.
+""".encode('utf-8') # noqa This is a giant literal string for testing.
         mock_execute.return_value = (efibootmgr_resp, '')
         result = list(efi_utils.get_boot_records())
 
@@ -319,7 +319,7 @@ Boot123A* Integrated NIC 1 Port 1 Partition 1   VenHw(33391845-5f86-4e78-8fce-c4
 Boot000B* UEFI: PXE IPv4 Realtek PCIe 2.5GBE Family Controller	PciRoot(0x0)/Pci(0x1c,0x0)/Pci(0x0,0x0)/MAC([REDACTED],0)/IPv4(0.0.0.00.0.0.0,0,0)..BO
 Boot0008* Generic USB Boot UsbClass(ffff,ffff,255,255)
 Boot0009* Internal CD/DVD ROM Drive (UEFI)      PciRoot(0x0)/Pci(0x11,0x0)/Sata(1,65535,0)/CDROM(1,0x265,0x2000)
-""".encode('utf-16') # noqa This is a giant literal string for testing.
+""".encode('utf-8') # noqa This is a giant literal string for testing.
         mock_execute.return_value = (efibootmgr_resp, '')
         patterns = [
             re.compile(r'^HD\(', flags=re.IGNORECASE),
@@ -367,7 +367,7 @@ Boot0001* Vendor String HD(1,GPT,4f3c6294-bf9b-4208-9808-be45dfc34b5c)File(\EFI\
 Boot0002 Vendor String HD(2,GPT,4f3c6294-bf9b-4208-9808-be45dfc34b5c)File(\EFI\Boot\BOOTX64.EFI)
 Boot0003: VENDMAGIC FvFile(9f3c6294-bf9b-4208-9808-be45dfc34b51)N.....YM....R,Y.
 """  # noqa This is a giant literal string for testing.
-        dupe_entry = dupe_entry.encode('utf-16')
+        dupe_entry = dupe_entry.encode('utf-8')
         mock_execute.side_effect = iter([('', ''),
                                          (dupe_entry, ''),
                                          ('', ''), ('', ''),

@@ -279,17 +279,29 @@ def get_boot_records():
              (boot number, boot record, root device type, device path).
     """
     # Invokes binary=True so we get a bytestream back.
-    efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    efi_output = None
+    try:
+        efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    except processutils.ProcessExecutionError as e:
+        error_msg = ('DBG_NORDIX: Could not execut efibootmgr: %(err)s,'
+                     ' the EFI/NVRAM cleanup is not executed,'
+                     ' ignore this error on sysmtems running BIOS!'
+                     % {'err': e})
+        LOG.debug(error_msg)
     # Bytes must be decoded before regex can be run and
     # matching to work as intended.
     # Also ignore errors on decoding, as we can basically get
     # garbage out of the nvram record, this way we don't fail
     # hard on unrelated records.
-    cmd_output = efi_output[0].decode('utf-16', errors='ignore')
-    for line in cmd_output.split('\n'):
-        match = _ENTRY_LABEL.match(line)
-        if match is not None:
-            yield (match[1], match[2], match[4], match[3])
+    if efi_output:
+        LOG.debug('DBG_NORDIX: EFI inventory parsing started!')
+        cmd_output = efi_output[0].decode('utf-8', errors='ignore')
+        for line in cmd_output.split('\n'):
+            LOG.debug('DBG_NORDIX: EFI inventory item: %s', line)
+            match = _ENTRY_LABEL.match(line)
+            LOG.debug('DBG_NORDIX: EFI inventory match: %s', match)
+            if match is not None:
+                yield (match[1], match[2], match[4], match[3])
 
 
 def add_boot_record(device, efi_partition, loader, label):
@@ -321,8 +333,10 @@ def clean_boot_records(patterns):
                             where any matching entry will be deleted.
     """
 
+    LOG.debug('DBG_NORDIX: BOOT patterns: %s', patterns)
     for boot_num, entry, _, path in get_boot_records():
         for pattern in patterns:
+            LOG.debug('DBG_NORDIX: UEFI Pattern tried: %s', pattern.pattern)
             if pattern.search(path):
                 LOG.debug('Path %s matched pattern %s, '
                           'entry will be deleted: %s',
