@@ -525,6 +525,14 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     LOG.debug("Start destroy disk metadata for node %(node)s.",
               {'node': node_uuid})
     try:
+        from ironic_python_agent import partition_utils
+        config_drive_part = partition_utils.get_partlabelled_partition(
+            dev, CONFIGDRIVE_LABEL, node_uuid)
+        if config_drive_part:
+            utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
+                          'bs=1M', 'oflag=direct', 'count=64')
+        else:
+            LOG.debug("DBG_NORDIX: NO CONFIG DRIVE WAS FOUND DURING CLEANING!")
         utils.execute('wipefs', '--force', '--all', dev,
                       use_standard_locale=True)
     except processutils.ProcessExecutionError as e:

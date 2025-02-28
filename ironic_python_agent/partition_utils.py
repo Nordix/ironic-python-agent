@@ -142,10 +142,10 @@ def get_configdrive(configdrive, node_uuid, tempdir=None):
 
 
 def get_labelled_partition(device_path, label, node_uuid):
-    """Check and return if partition with given label exists
+    """Check and return if partition with given file system label if exists
 
     :param device_path: The device path.
-    :param label: Partition label
+    :param label: file system label
     :param node_uuid: UUID of the Node. Used for logging.
     :raises: InstanceDeployFailure, if any disk partitioning related
         commands fail.
@@ -160,7 +160,7 @@ def get_labelled_partition(device_path, label, node_uuid):
 
     except (processutils.UnknownArgumentError,
             processutils.ProcessExecutionError, OSError) as e:
-        msg = ('Failed to retrieve partition labels on disk %(disk)s '
+        msg = ('Failed to retrieve file system labels on disk %(disk)s '
                'for node %(node)s. Error: %(error)s' %
                {'disk': device_path, 'node': node_uuid, 'error': e})
         LOG.error(msg)
@@ -174,7 +174,50 @@ def get_labelled_partition(device_path, label, node_uuid):
                     found_2 = '/dev/%(part)s' % {'part': dev['NAME'].strip()}
                     found = [found_part, found_2]
                     raise exception.InstanceDeployFailure(
-                        'More than one partition with label "%(label)s" '
+                        'More than one file system with label "%(label)s" '
+                        'exists on device %(device)s for node %(node)s: '
+                        '%(found)s.' %
+                        {'label': label, 'device': device_path,
+                         'node': node_uuid, 'found': ' and '.join(found)})
+                found_part = '/dev/%(part)s' % {'part': dev['NAME'].strip()}
+
+    return found_part
+
+
+def get_partlabelled_partition(device_path, label, node_uuid):
+    """Check and return if partition with given partlabel if exists
+
+    :param device_path: The device path.
+    :param label: Partition label
+    :param node_uuid: UUID of the Node. Used for logging.
+    :raises: InstanceDeployFailure, if any disk partitioning related
+        commands fail.
+    :returns: block device file for partition if it exists; otherwise it
+              returns None.
+    """
+    disk_utils.partprobe(device_path)
+    try:
+        output, err = utils.execute('lsblk', '-Po', 'name,partlabel',
+                                    device_path, check_exit_code=[0, 1],
+                                    use_standard_locale=True)
+
+    except (processutils.UnknownArgumentError,
+            processutils.ProcessExecutionError, OSError) as e:
+        msg = ('Failed to retrieve partition labels on disk %(disk)s '
+               'for node %(node)s. Error: %(error)s' %
+               {'disk': device_path, 'node': node_uuid, 'error': e})
+        LOG.error(msg)
+        raise exception.InstanceDeployFailure(msg)
+
+    found_part = None
+    if output:
+        for dev in utils.parse_device_tags(output):
+            if dev['PARTLABEL'].upper() == label.upper():
+                if found_part:
+                    found_2 = '/dev/%(part)s' % {'part': dev['NAME'].strip()}
+                    found = [found_part, found_2]
+                    raise exception.InstanceDeployFailure(
+                        'More than one partition with partlabel "%(label)s" '
                         'exists on device %(device)s for node %(node)s: '
                         '%(found)s.' %
                         {'label': label, 'device': device_path,
@@ -364,7 +407,7 @@ def create_config_drive_partition(node_uuid, device, configdrive,
     if encryption:
         encryption_size_modifier = 32
     try:
-        config_drive_part = get_labelled_partition(
+        config_drive_part = get_partlabelled_partition(
             device, disk_utils.CONFIGDRIVE_LABEL, node_uuid)
 
         confdrive_mb, confdrive_file = get_configdrive(configdrive, node_uuid)
@@ -393,8 +436,10 @@ def create_config_drive_partition(node_uuid, device, configdrive,
                 create_option = '0:-%dMB:0' % MAX_CONFIG_DRIVE_SIZE_MB
                 + encryption_size_modifier
                 uuid_option = '0:%s' % part_uuid
+                part_label_option = '0:%s' % disk_utils.CONFIGDRIVE_LABEL
                 utils.execute('sgdisk', '-n', create_option,
-                              '-u', uuid_option, device)
+                              '-u', uuid_option, '-c',
+                              part_label_option, device)
             else:
                 # MBR workflow
                 cur_parts = set(part['number']
