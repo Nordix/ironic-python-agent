@@ -50,6 +50,8 @@ _PARTED_TABLE_TYPE_RE = re.compile(r'^.*partition\s+table\s*:\s*(gpt|msdos)',
 
 CONFIGDRIVE_LABEL = "config-2"
 MAX_CONFIG_DRIVE_SIZE_MB = 64
+MAX_ENCRYPTED_CONF_DRIVE_SIZE_MB = 96
+BYTE_TO_MB_CONV_RATIO = 1048576
 
 # Maximum disk size supported by MBR is 2TB (2 * 1024 * 1024 MB)
 MAX_DISK_SIZE_MB_SUPPORTED_BY_MBR = 2097152
@@ -505,6 +507,12 @@ def get_dev_byte_size(dev):
     return int(byte_sz)
 
 
+def get_dev_mb_size(dev):
+    """Get the device size in mega bytes."""
+    mb_size = get_dev_byte_size(dev) / int(BYTE_TO_MB_CONV_RATIO)
+    return int(mb_size)
+
+
 def get_dev_sector_size(dev):
     """Get the device logical sector size in bytes."""
     sect_sz, cmderr = utils.execute('blockdev', '--getss', dev)
@@ -519,6 +527,8 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
 
     :param dev: Path for the device to work on.
     :param node_uuid: Node's uuid. Used for logging.
+    :param quiet_mode: set to True and cleaning failiures will be transient
+    :param clean_end: set to True to zero the last 96MB of the device
     """
     # NOTE(NobodyCam): This is needed to work around bug:
     # https://bugs.launchpad.net/ironic/+bug/1317647
@@ -529,10 +539,23 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
         config_drive_part = partition_utils.get_partlabelled_partition(
             dev, CONFIGDRIVE_LABEL, node_uuid)
         if config_drive_part:
+            LOG.debug("DBG_NORDIX: ZEROING CONF DRIVE BASED ON LABEL!")
             utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
                           'bs=1M', 'oflag=direct', 'count=64')
         else:
-            LOG.debug("DBG_NORDIX: NO CONFIG DRIVE WAS FOUND DURING CLEANING!")
+            LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
+            LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
+        fields = ['TYPE']
+        dev_info = get_device_information(dev, fields)
+        dev_type = dev_info.get('TYPE')
+        LOG.debug("DBG_NORDIX: DISK TYPE: " + dev_type)
+        if dev_type == 'disk':
+            LOG.debug("DBG_NORDIX: ZEROING THE LAST 96MB!")
+            dev_size = get_dev_mb_size(dev) - MAX_ENCRYPTED_CONF_DRIVE_SIZE_MB
+            seek_option = 'seek=%d' % dev_size
+            utils.execute('dd', 'if=/dev/zero', 'of=' + dev,
+                          'bs=1M', seek_option, 'oflag=direct', 'count=96')
+
         utils.execute('wipefs', '--force', '--all', dev,
                       use_standard_locale=True)
     except processutils.ProcessExecutionError as e:
