@@ -535,21 +535,21 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     LOG.debug("Start destroy disk metadata for node %(node)s.",
               {'node': node_uuid})
     try:
-        from ironic_python_agent import partition_utils
-        config_drive_part = partition_utils.get_partlabelled_partition(
-            dev, CONFIGDRIVE_LABEL, node_uuid)
-        if config_drive_part:
-            LOG.debug("DBG_NORDIX: ZEROING CONF DRIVE BASED ON LABEL!")
-            utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
-                          'bs=1M', 'oflag=direct', 'count=64')
-        else:
-            LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
-            LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
         fields = ['TYPE']
         dev_info = get_device_information(dev, fields)
         dev_type = dev_info.get('TYPE')
         LOG.debug("DBG_NORDIX: DISK TYPE: " + dev_type)
         if dev_type == 'disk':
+            from ironic_python_agent import partition_utils
+            config_drive_part = partition_utils.get_partlabelled_partition(
+                dev, CONFIGDRIVE_LABEL, node_uuid)
+            if config_drive_part:
+                LOG.debug("DBG_NORDIX: ZEROING CONF DRIVE BASED ON LABEL!")
+                utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
+                              'bs=1M', 'oflag=direct', 'count=64')
+            else:
+                LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
+                LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
             LOG.debug("DBG_NORDIX: ZEROING THE LAST 96MB!")
             dev_size = get_dev_mb_size(dev) - MAX_ENCRYPTED_CONF_DRIVE_SIZE_MB
             seek_option = 'seek=%d' % dev_size
