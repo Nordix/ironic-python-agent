@@ -550,11 +550,6 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
             else:
                 LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
                 LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
-            LOG.debug("DBG_NORDIX: ZEROING THE LAST 96MB!")
-            dev_size = get_dev_mb_size(dev) - MAX_ENCRYPTED_CONF_DRIVE_SIZE_MB
-            seek_option = 'seek=%d' % dev_size
-            utils.execute('dd', 'if=/dev/zero', 'of=' + dev,
-                          'bs=1M', seek_option, 'oflag=direct', 'count=96')
 
         utils.execute('wipefs', '--force', '--all', dev,
                       use_standard_locale=True)
@@ -592,6 +587,20 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     # This is the same bug as
     # https://bugs.launchpad.net/ironic-python-agent/+bug/1737556
 
+    # Go ahead and let sgdisk run as well. No worries if sgdisk fails
+    # if quiet clean is enabled GPT deletion will be attempted via dd
+    try:
+        LOG.debug("DBG_NORDIX: Removing GPT with sgdisk!")
+        utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata on device \" %(device)s \" "
+                      ": Error \" %(error)s \" Destruction with sgdisk.",
+                      {'device': dev, 'error': e})
+
+    # Erase via dd overwrite the expected location of the primary and the
+    # secondary GPT and the expected location of a config drive
     try:
         sector_size = get_dev_sector_size(dev)
     except Exception as e:
@@ -625,6 +634,7 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     if dev_size < gpt_sectors * sector_size:
         dd_count = 'count=%s' % int(dev_size / sector_size)
     try:
+        LOG.debug("DBG_NORDIX: ZEROING THE GPT!")
         utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
                       'oflag=direct', use_standard_locale=True)
     except Exception as e:
@@ -633,7 +643,6 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
             LOG.error("Destroying metadata %(device)s Error %(error)s "
                       "Destruction with dd dev_size < GPT_SIZE_SECTORS.",
                       {'device': dev, 'error': e})
-        return
 
     # Overwrite the Secondary GPT, do this only if there could be one
     if dev_size > gpt_sectors * sector_size:
@@ -641,6 +650,7 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
         dd_seek = 'seek=%i' % gpt_backup
         dd_count = 'count=%s' % gpt_sectors
         try:
+            LOG.debug("DBG_NORDIX: ZEROING THE SECONDARY GPT!")
             utils.execute('dd', dd_bs, 'if=/dev/zero', dd_device, dd_count,
                           'oflag=direct', dd_seek, use_standard_locale=True)
         except Exception as e:
@@ -649,18 +659,18 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
                 LOG.error("Destroying metadata %(device)s Error %(error)s "
                           "Destruction with dd dev_size > GPT_SIZE_SECTORS.",
                           {'device': dev, 'error': e})
-            return
-
-    # Go ahead and let sgdisk run as well.
     try:
-        utils.execute('sgdisk', '-Z', dev, use_standard_locale=True)
+        LOG.debug("DBG_NORDIX: ZEROING THE LAST 96MB!")
+        conf_seek = get_dev_mb_size(dev) - MAX_ENCRYPTED_CONF_DRIVE_SIZE_MB
+        seek_option = 'seek=%d' % conf_seek
+        utils.execute('dd', 'if=/dev/zero', 'of=' + dev,
+                      'bs=1M', seek_option, 'oflag=direct', 'count=96')
     except Exception as e:
         with excutils.save_and_reraise_exception() as ctxt:
             ctxt.reraise = not quiet_mode
-            LOG.error("Destroying metadata on device \" %(device)s \" "
-                      ": Error \" %(error)s \" Destruction with sgdisk.",
+            LOG.error("Destroying metadata %(device)s Error %(error)s "
+                      "Zeroing the last 96MB failed!",
                       {'device': dev, 'error': e})
-        return
 
     try:
         wait_for_disk_to_become_available(dev)
