@@ -534,23 +534,25 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
     # https://bugs.launchpad.net/ironic/+bug/1317647
     LOG.debug("Start destroy disk metadata for node %(node)s.",
               {'node': node_uuid})
+    dev_type = 'unknown'
+    # Determine block device type, only disk will be cleaned
     try:
         fields = ['TYPE']
         dev_info = get_device_information(dev, fields)
         dev_type = dev_info.get('TYPE')
         LOG.debug("DBG_NORDIX: DISK TYPE: " + dev_type)
-        if dev_type == 'disk':
-            from ironic_python_agent import partition_utils
-            config_drive_part = partition_utils.get_partlabelled_partition(
-                dev, CONFIGDRIVE_LABEL, node_uuid)
-            if config_drive_part:
-                LOG.debug("DBG_NORDIX: ZEROING CONF DRIVE BASED ON LABEL!")
-                utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
-                              'bs=1M', 'oflag=direct', 'count=64')
-            else:
-                LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
-                LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Device type can't be determined for %(device)s; Error "
+                      "%(error)s", {'device': dev, 'error': e})
 
+    if dev_type != 'disk':
+        LOG.debug("DBG_NORDIX: NOT DISK WON'T CLEAN: " + dev)
+        return
+
+    # Remove file system headers
+    try:
         utils.execute('wipefs', '--force', '--all', dev,
                       use_standard_locale=True)
     except processutils.ProcessExecutionError as e:
@@ -569,17 +571,60 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
                         ctxti.reraise = not quiet_mode
                         LOG.error("wipefs --force device %(device)s Error "
                                   "%(error)s", {'device': dev, 'error': er})
-                    if quiet_mode:
-                        return
+
             LOG.error("wipefs --force --all device %(device)s Error "
                       "%(error)s", {'device': dev, 'error': e})
-        return
     except Exception as e:
         with excutils.save_and_reraise_exception() as ctxt:
             ctxt.reraise = not quiet_mode
             LOG.error("wipefs on device %(device)s Error %(error)s",
                       {'device': dev, 'error': e})
-        return
+
+    try:
+        wait_for_disk_to_become_available(dev)
+    except exception.IronicException as e:
+        if quiet_mode:
+            LOG.error("Destroying metadata on %(dev)s for node "
+                      "%(node)s has failed! Error: disk is not available!",
+                      {'dev': dev, 'node': node_uuid})
+            return
+        raise exception.InstanceDeployFailure(
+            _('Destroying metadata failed on device %(device)s. '
+              'Error: %(error)s')
+            % {'device': dev, 'error': e})
+
+    # Looking up and zeroing the config drive based on partlabel
+    try:
+        from ironic_python_agent import partition_utils
+        config_drive_part = partition_utils.get_partlabelled_partition(
+            dev, CONFIGDRIVE_LABEL, node_uuid)
+        if config_drive_part:
+            LOG.debug("DBG_NORDIX: ZEROING CONF DRIVE BASED ON LABEL!")
+            utils.execute('dd', 'if=/dev/zero', 'of=' + config_drive_part,
+                          'bs=1M', 'oflag=direct', 'count=64')
+        else:
+            LOG.debug("DBG_NORDIX: NO CONFIG DRIVE LABEL FOUND!")
+            LOG.debug("DBG_NORDIX: NO CONFIG CLEANING BASED ON LABEL!")
+    except Exception as e:
+        with excutils.save_and_reraise_exception() as ctxt:
+            ctxt.reraise = not quiet_mode
+            LOG.error("Destroying metadata on device \" %(device)s \" "
+                      ": Error \" %(error)s \" Destruction with sgdisk.",
+                      {'device': dev, 'error': e})
+
+    try:
+        wait_for_disk_to_become_available(dev)
+    except exception.IronicException as e:
+        if quiet_mode:
+            LOG.error("Destroying metadata on %(dev)s for node "
+                      "%(node)s has failed! Error: disk is not available!",
+                      {'dev': dev, 'node': node_uuid})
+            return
+        raise exception.InstanceDeployFailure(
+            _('Destroying metadata failed on device %(device)s. '
+              'Error: %(error)s')
+            % {'device': dev, 'error': e})
+
     # NOTE(TheJulia): sgdisk attempts to load and make sense of the
     # partition tables in advance of wiping the partition data.
     # This means when a CRC error is found, sgdisk fails before
@@ -598,6 +643,19 @@ def destroy_disk_metadata(dev, node_uuid, quiet_mode=False):
             LOG.error("Destroying metadata on device \" %(device)s \" "
                       ": Error \" %(error)s \" Destruction with sgdisk.",
                       {'device': dev, 'error': e})
+
+    try:
+        wait_for_disk_to_become_available(dev)
+    except exception.IronicException as e:
+        if quiet_mode:
+            LOG.error("Destroying metadata on %(dev)s for node "
+                      "%(node)s has failed! Error: disk is not available!",
+                      {'dev': dev, 'node': node_uuid})
+            return
+        raise exception.InstanceDeployFailure(
+            _('Destroying metadata failed on device %(device)s. '
+              'Error: %(error)s')
+            % {'device': dev, 'error': e})
 
     # Erase via dd overwrite the expected location of the primary and the
     # secondary GPT and the expected location of a config drive
