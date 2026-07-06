@@ -12,14 +12,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 """
-Various utilites LUKS encryption related utilities.
+Various utilities LUKS encryption related utilities.
 
 """
 
 import logging
 
-from ironic_lib import utils
 from oslo_utils import excutils
+
+from ironic_python_agent import utils
 
 LOG = logging.getLogger(__name__)
 

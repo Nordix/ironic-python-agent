@@ -550,7 +550,7 @@ def _does_config_drive_work(config_drive_part):
         # size which is usable. If the underlying driver cannot use that size,
         # then the filesystem will not work and cannot be updated because
         # structurally it is incompaible with the block device driver.
-        # TODO(adam) concider testing the presence of config-2
+        # TODO(adam) consider testing the presence of config-2
         # config_drive_mount_target = \
         #    hardware.dispatch_to_managers('config_drive_open',
         #                                  config_drive_part)
