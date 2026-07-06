@@ -15,12 +15,11 @@
 import re
 
 
-# from ironic_python_agent import errors
-from ironic_lib import exception
-from ironic_lib import utils
 from oslo_log import log
 from oslo_utils import excutils
 
+from ironic_python_agent import errors
+from ironic_python_agent import utils
 from ironic_python_agent import disk_utils
 from ironic_python_agent import hardware
 from ironic_python_agent.hardware_managers.luks import luks_utils as luks
@@ -116,7 +115,7 @@ def detect_root_partition_on_device(disk):
                                        'index_number': p_num}
         if not root_partition_info:
             error_msg = "ERROR: Can't find typecode match!"
-            raise exception.InstanceDeployFailure(error_msg)
+            raise errors.DeploymentError(error_msg)
         utils.execute('ln', '-s', root_partition_info['partition_path'],
                       '/tmp/root_partition')
     except Exception:

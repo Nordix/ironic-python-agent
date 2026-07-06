@@ -17,8 +17,9 @@ Various utilites related to TPM based credential management.
 import logging
 import os
 
-from ironic_lib import utils
 from oslo_utils import excutils
+
+from ironic_python_agent import utils
 
 LOG = logging.getLogger(__name__)
 DEFAULT_WORKDIR = "/tmp"
