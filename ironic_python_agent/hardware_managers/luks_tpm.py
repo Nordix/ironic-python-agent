@@ -15,14 +15,14 @@
 import re
 
 
-# from ironic_python_agent import errors
-from ironic_lib import exception
-from ironic_lib import utils
 from oslo_log import log
 from oslo_utils import excutils
 
 from ironic_python_agent import disk_utils
+from ironic_python_agent import errors
 from ironic_python_agent import hardware
+from ironic_python_agent import utils
+
 from ironic_python_agent.hardware_managers.luks import luks_utils as luks
 from ironic_python_agent.hardware_managers.tpm import tpm_utils as tpm
 
@@ -48,10 +48,10 @@ def _grow_part(partition_info):
     """
     try:
         # (adam) figure out the parent device of the partition to split the
-        # device name and the partition suffix from each each outher, then
+        # device name and the partition suffix from each each other, then
         # remove potential non digit content from the partition suffix to get
         # the partition index
-        # (adam) I would preffer to move this into the generic disk or
+        # (adam) I would prefer to move this into the generic disk or
         # partition ustils module
         # parent = utils.execute('lsblk', '-ndo', 'NAME', partition)[0]
         # part_suffix = re.sub(parent, '', partition)
@@ -116,7 +116,7 @@ def detect_root_partition_on_device(disk):
                                        'index_number': p_num}
         if not root_partition_info:
             error_msg = "ERROR: Can't find typecode match!"
-            raise exception.InstanceDeployFailure(error_msg)
+            raise errors.DeploymentError(error_msg)
         utils.execute('ln', '-s', root_partition_info['partition_path'],
                       '/tmp/root_partition')
     except Exception:
@@ -163,7 +163,7 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
 
         In both whole disk and partition image scenarios config drive
         partition is usually created by IPA based and populated with
-        data recieved by IPA via it's API.
+        data received by IPA via it's API.
 
         This function is expected to be executed after the config drive
         partition is created but before it is populated with the data.
@@ -188,14 +188,14 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
         """This is being called in the partition image workflow.
 
         In this hardware manager when this function is called it will
-        LUKS+TPM to encrypt the already creaed but empty root partition.
+        LUKS+TPM to encrypt the already created but empty root partition.
         It is expected that that the path to the partition is known to IPA
         already because it has created the partition.
 
         :param partition: device path to the partition
         """
-        LOG.error('ERROR: Partition image encryption is not yet implementd!')
-        # TODO(adam) throw uncompatibility exception
+        LOG.error('ERROR: Partition image encryption is not yet implemented!')
+        # TODO(adam) throw incompatibility exception
         pass
         # _grow_part(root_partition)
         # luks.luks_encrypt_device(tpm.check_and_generate_key_file(),
@@ -213,8 +213,8 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
 
         :param partition: The device patht to the partition
         """
-        LOG.error('ERROR: Partition image encryption is not yet implementd!')
-        # TODO(adam) throw uncompatibility exception
+        LOG.error('ERROR: Partition image encryption is not yet implemented!')
+        # TODO(adam) throw incompatibility exception
         pass
 
     def partition_image_open_root_partition(self, partition, *args, **kwargs):
@@ -228,6 +228,6 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
         :return: returns the mountable device path
         :rtype: string
         """
-        LOG.error('ERROR: Partition image encryption is not yet implementd!')
-        # TODO(adam) throw uncompatibility exception
+        LOG.error('ERROR: Partition image encryption is not yet implemented!')
+        # TODO(adam) throw incompatibility exception
         pass

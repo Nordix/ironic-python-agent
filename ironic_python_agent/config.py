@@ -417,7 +417,7 @@ cli_opts = [
                 default=APARAMS.get('ipa-enable-disk-encryption', False),
                 help='Enables disk encryption for the root device.'
                      'The disk encryption is handled by one of the relevant'
-                     'hardware managers with the highes hardware support '
+                     'hardware managers with the highest hardware support '
                      'value. By default the LUKS+tpm hardware manager takes'
                      'care of the encryption.'),
 ]

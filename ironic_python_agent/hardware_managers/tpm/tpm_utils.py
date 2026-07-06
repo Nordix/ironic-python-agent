@@ -10,15 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """
-Various utilites related to TPM based credential management.
+Various utilities related to TPM based credential management.
 
 """
 
 import logging
 import os
 
-from ironic_lib import utils
 from oslo_utils import excutils
+
+from ironic_python_agent import utils
 
 LOG = logging.getLogger(__name__)
 DEFAULT_WORKDIR = "/tmp"
@@ -75,7 +76,7 @@ def _make_primary_context_persistent(primary_context=DEFAULT_PRIMARY_CONTEXT):
 def _create_tpm_policy(policy_file=DEFAULT_POLICY_FILE):
     """Creates the tpm policy for sealing secrets to tpm.
 
-    :returns: the path to the polocy file as a string
+    :returns: the path to the policy file as a string
     :rtype: string
     """
     try:
@@ -92,7 +93,7 @@ def _seal_secret_to_tpm(secret, context=DEFAULT_PRIMARY_CONTEXT,
                         sealed_context=DEFAULT_SEALED_CONTEXT):
     """Seals the secret according to the cotnext and the policy
 
-    This function also cleares all of the files created before
+    This function also clears all of the files created before
     the sealing process, the only remaining file will be the context file
     of the sealed object.
 
@@ -198,9 +199,9 @@ def clear_tpm():
 def generate_tpm_credential():
     """Generates and stores a randomized TPM credential
 
-    Everytime this function is called a new TPM credential will be
+    Every time this function is called a new TPM credential will be
     generated and it will overwrite the old.
-    :returns: the unencrypted TPM credentail for use in other processes
+    :returns: the unencrypted TPM credential for use in other processes
     """
     check_tpm_compatibility()
     clear_tpm()
