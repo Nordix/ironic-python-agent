@@ -279,7 +279,16 @@ def get_boot_records():
              (boot number, boot record, root device type, device path).
     """
     # Invokes binary=True so we get a bytestream back.
-    efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    efi_output = None
+    try:
+        efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    except processutils.ProcessExecutionError as e:
+        error_msg = ('DBG_NORDIX: Could not execute efibootmgr: %(err)s,'
+                     ' the EFI/NVRAM cleanup is not executed,'
+                     ' ignore this error on sysmtems running BIOS!'
+                     % {'err': e})
+        LOG.debug(error_msg)
+        return
     # Bytes must be decoded before regex can be run and
     # matching to work as intended.
     # Also ignore errors on decoding, as we can basically get
@@ -327,8 +336,11 @@ def clean_boot_records(patterns):
     :param match_patterns: A list of string regular expression patterns
                             where any matching entry will be deleted.
     """
-
-    for boot_num, entry, _, path in get_boot_records():
+    boot_records = get_boot_records()
+    if boot_records is None:
+        LOG.debug("NORDIX: No boot records to clean!")
+        return
+    for boot_num, entry, _, path in boot_records:
         for pattern in patterns:
             if pattern.search(path):
                 LOG.debug('Path %s matched pattern %s, '
@@ -355,7 +367,11 @@ def _run_efibootmgr(valid_efi_bootloaders, device, efi_partition,
 
     # Before updating let's get information about the bootorder
     LOG.debug("Getting information about boot order.")
-    boot_records = list(get_boot_records())
+    efi_records = get_boot_records()
+    if efi_records is None:
+        LOG.debug("NORDIX: No boot records found!")
+        return
+    boot_records = list(efi_records)
     label_id = 1
     for v_bl in valid_efi_bootloaders:
         if 'csv' in v_bl.lower():
