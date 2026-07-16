@@ -279,7 +279,15 @@ def get_boot_records():
              (boot number, boot record, root device type, device path).
     """
     # Invokes binary=True so we get a bytestream back.
-    efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    efi_output = None
+    try:
+        efi_output = utils.execute('efibootmgr', '-v', binary=True)
+    except processutils.ProcessExecutionError as e:
+        error_msg = ('DBG_NORDIX: Could not execute efibootmgr: %(err)s,'
+                     ' the EFI/NVRAM cleanup is not executed,'
+                     ' ignore this error on sysmtems running BIOS!'
+                     % {'err': e})
+        LOG.debug(error_msg)
     # Bytes must be decoded before regex can be run and
     # matching to work as intended.
     # Also ignore errors on decoding, as we can basically get
