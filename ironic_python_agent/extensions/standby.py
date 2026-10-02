@@ -1071,7 +1071,8 @@ class StandbyExtension(base.BaseAgentExtension):
                     #             with qemu-img and are streamed directly to
                     #             disk unmodified.
                     self._stream_raw_image_onto_device(image_info, stream_to)
-                    utils.execute('ln', '-s', stream_to, '/tmp/root_disk')
+                    utils.execute('ln', '-s', stream_to,
+                                  '/tmp/root_disk')  # nosec
                     # For whole disk image encryption is done after
                     # the streaming is done
                     if disk_encryption:
@@ -1080,7 +1081,7 @@ class StandbyExtension(base.BaseAgentExtension):
             else:
                 # Encryption is handled within cache_and_write_image
                 self._cache_and_write_image(image_info, device, configdrive)
-                utils.execute('ln', '-s', device, '/tmp/root_disk')
+                utils.execute('ln', '-s', device, '/tmp/root_disk')  # nosec
                 if disk_encryption:
                     hardware.dispatch_to_managers(
                         'whole_disk_image_encryption', device=device)

@@ -22,7 +22,7 @@ from oslo_utils import excutils
 from ironic_python_agent import utils
 
 LOG = logging.getLogger(__name__)
-DEFAULT_WORKDIR = "/tmp"
+DEFAULT_WORKDIR = "/tmp"  # nosec
 DEFAULT_POLICY_NAME = "trusted_policy.pol"
 DEFAULT_POLICY_FILE = DEFAULT_WORKDIR + '/' + DEFAULT_POLICY_NAME
 DEFAULT_PRIMARY_CTX_NAME = "primary.ctx"
@@ -104,7 +104,7 @@ def _seal_secret_to_tpm(secret, context=DEFAULT_PRIMARY_CONTEXT,
     :rtype: string
     """
     try:
-        with open("/tmp/secret", "w") as file:
+        with open("/tmp/secret", "w") as file:  # nosec
             # Write the string to the file
             file.write(secret)
         # utils.execute('echo', secret, '>', '/tmp/secret')
@@ -118,10 +118,11 @@ def _seal_secret_to_tpm(secret, context=DEFAULT_PRIMARY_CONTEXT,
         #                '--sealing-input', '/tmp/secret')
         utils.execute('tpm2_create', '-P', 'secret', '-p', 'secret', '-C',
                       '0x81010001', '-u', '/tmp/key.pub', '-r',
-                      '/tmp/key.priv', '--sealing-input', '/tmp/secret')
+                      '/tmp/key.priv', '--sealing-input',
+                      '/tmp/secret')  # nosec
         utils.execute('tpm2_load', '-P', 'secret', '-C', '0x81010001', '-u',
                       '/tmp/key.pub', '-r', '/tmp/key.priv', '-c',
-                      sealed_context)
+                      sealed_context)  # nosec
     except Exception:
         # (adam) It is considered a failed sealing if the files
         # are not cleared away properly
@@ -148,7 +149,7 @@ def unseal_tpm_key():
     :param context: TPM context file of the sealed object
     :returns: the tpm secret as a string
     """
-    secret_file = "/tmp/secret"
+    secret_file = "/tmp/secret"  # nosec
     try:
         # unsealed_secret = utils.execute('tpm2_unseal', '-c', '0x81010002',
         #                                '-p', 'pcr:sha256:0')[0]

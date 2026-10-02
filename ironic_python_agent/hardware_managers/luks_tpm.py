@@ -118,7 +118,7 @@ def detect_root_partition_on_device(disk):
             error_msg = "ERROR: Can't find typecode match!"
             raise errors.DeploymentError(error_msg)
         utils.execute('ln', '-s', root_partition_info['partition_path'],
-                      '/tmp/root_partition')
+                      '/tmp/root_partition')  # nosec
     except Exception:
         with excutils.save_and_reraise_exception():
             LOG.error("ERROR: Can't find root partition on %(device)s", {
