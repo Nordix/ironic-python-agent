@@ -143,7 +143,7 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
             LOG.debug('DEBUG: TPM+LUKS based encryption is not supported!')
             return hardware.HardwareSupport.NONE
 
-    def whole_disk_image_encryption(self, device, *args, **kwargs):
+    def whole_disk_image_encryption(self, device, flags, *args, **kwargs):
         """(RE)Encrypts the root partition in the whole disk image workflow
 
         This function will re-encrypt the root partition (specified by
@@ -156,7 +156,8 @@ class LuksTpmHardwareManager(hardware.HardwareManager):
         root_partition_info['device'] = device
         _grow_part(root_partition_info)
         luks.luks_re_encrypt_partition(tpm.check_and_generate_key_file(),
-                                       root_partition_info['partition_path'])
+                                       root_partition_info['partition_path'],
+                                       persistentFlags=flags)
 
     def config_drive_encryption(self, conf_part, *args, **kwargs):
         """This is called in both whole disk and partition image workflows

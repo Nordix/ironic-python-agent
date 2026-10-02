@@ -474,6 +474,16 @@ cli_opts = [
                      'hardware managers with the highest hardware support '
                      'value. By default the LUKS+tpm hardware manager takes'
                      'care of the encryption.'),
+    cfg.BoolOpt('no_read_workqueue',
+                default=APARAMS.get('ipa-crypt-no-r-queue', False),
+                help='When using LUKS based disk encryption, this option'
+                     'disables dm-crypt read workqueue for the encrypted'
+                     'device.'),
+    cfg.BoolOpt('no_write_workqueue',
+                default=APARAMS.get('ipa-crypt-no-w-queue', False),
+                help='When using LUKS based disk encryption, this option'
+                     'disables dm-crypt write workqueue for the encrypted'
+                     'device.'),
 ]
 
 disk_utils_opts = [

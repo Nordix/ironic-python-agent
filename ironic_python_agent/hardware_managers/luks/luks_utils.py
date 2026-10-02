@@ -32,55 +32,59 @@ def check_luks_compatibility():
     return True
 
 
-def luks_encrypt_devcie_partition(key_file, partition):
-    """Encrypt a block device using an unsealed TPM credential
-
-    :param key_file: plaintext version of the credential key file
-    :param device: the device path of the block device that will be
-    encrypted
-    """
-    try:
-        utils.execute('cryptsetup', 'encrypt', '--type', 'luks2', '--key-file',
-                      key_file, partition)
-        utils.execute('cryptsetup', 'luksAddKey', '--type', 'luks2',
-                      '--key-file', key_file, partition, key_file)
-    except Exception:
-        with excutils.save_and_reraise_exception():
-            LOG.error("ERROR: Encryption has failed for %(partition)s",
-                      {'partition', partition})
-
-
-def luks_re_encrypt_partition(key_file, partition):
+def luks_re_encrypt_partition(key_file, partition, persistentFlags=[]):
     """Re-encrypt block deive with TPM credential
 
     :param key_file: plaintext version of the key file
     :param device: the device path of the block device that will be
+    :param persistentFlags: cryptsetup flags to use when opening device
     encrypted
     """
     try:
+        LOG.debug("Encrypting partition %s", partition)
         utils.execute('cryptsetup', 'reencrypt', '--encrypt', '--type',
                       'luks2', '--reduce-device-size', '32M', '--key-file',
                       key_file, partition)
         utils.execute('cryptsetup', 'luksAddKey', '--type', 'luks2',
                       '--key-file', key_file, partition, key_file)
+        # If user has specified certain flags they want to use when opening
+        # the partition, add those as persistent flags to the LUKS header.
+        if len(persistentFlags) > 0:
+            LOG.debug("Adding opening flags to LUKS headers: %s",
+                      persistentFlags)
+            if '--persistent' not in persistentFlags:
+                persistentFlags.append('--persistent')
+            luks_open_partition(key_file, partition, 'tmp_luks_open',
+                                persistentFlags)
+            luks_close_partition('tmp_luks_open')
     except Exception:
         with excutils.save_and_reraise_exception():
             LOG.error("ERROR: Re-encryption has failed for %(partition)s",
-                      {'partition', partition})
+                      {'partition': partition})
 
 
-def luks_open_partition(key_file, partition, map_target):
+def luks_open_partition(key_file, partition, map_target, flags=[]):
     """Unlock a LUKS encrypted block device
 
     :param key_file: plaintext version of the key file
     :param device: the device path of the block device that will be
+    :param flags: cryptsetup flags to use when opening device
     encrypted
     """
     try:
         utils.execute('cryptsetup', 'open', '--type', 'luks2', '--key-file',
-                      key_file, partition, map_target)
+                      key_file, *flags, partition, map_target)
     except Exception:
         with excutils.save_and_reraise_exception():
             LOG.error("ERROR: Failed to open encrypted device %(partition)s", {
                       'partition': partition})
     return '/dev/mapper/' + map_target
+
+
+def luks_close_partition(map_target):
+    try:
+        utils.execute('cryptsetup', 'close', map_target)
+    except Exception:
+        with excutils.save_and_reraise_exception():
+            LOG.error("ERROR: Failed to close encrypted device %(target)",
+                      {'target': map_target})

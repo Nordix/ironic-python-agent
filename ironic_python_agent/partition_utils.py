@@ -398,7 +398,7 @@ def create_config_drive_partition(node_uuid, device, configdrive,
     """Create a partition for config drive
 
     Checks if the device is GPT or MBR partitioned and creates config drive
-    partition accordingly.
+    partition accordingly. Encryption can be used only with GPT.
 
     :param node_uuid: UUID of the Node.
     :param device: The device path.

@@ -46,6 +46,17 @@ def _disk_encryption_requested(image_info):
     return CONF.enable_disk_encryption
 
 
+def _disk_encryption_flags():
+    flags = []
+    if CONF.no_read_workqueue:
+        flags.append("--perf-no_read_workqueue")
+    if CONF.no_write_workqueue:
+        flags.append("--perf-no_write_workqueue")
+    if len(flags) > 0:
+        flags.append('--persistent')
+    return flags
+
+
 def _image_location(image_info):
     """Get the location of the image in the local file system.
 
@@ -1077,14 +1088,16 @@ class StandbyExtension(base.BaseAgentExtension):
                     # the streaming is done
                     if disk_encryption:
                         hardware.dispatch_to_managers(
-                            'whole_disk_image_encryption', device=stream_to)
+                            'whole_disk_image_encryption',
+                            device=stream_to, flags=_disk_encryption_flags())
             else:
-                # Encryption is handled within cache_and_write_image
+                # Write image and then encrypt it.
                 self._cache_and_write_image(image_info, device, configdrive)
                 utils.execute('ln', '-s', device, '/tmp/root_disk')  # nosec
                 if disk_encryption:
                     hardware.dispatch_to_managers(
-                        'whole_disk_image_encryption', device=device)
+                        'whole_disk_image_encryption',
+                        device=device, flags=_disk_encryption_flags())
 
         _validate_partitioning(device)
 
